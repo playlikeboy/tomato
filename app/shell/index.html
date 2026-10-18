@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tomato — The Wand S01E04</title>
+  <style>
+    :root {
+      --color-bg-primary: #080909;
+      --color-bg-canvas: #000000;
+      --color-surface-elevated: #191919;
+      --color-surface-hover: #262626;
+      --color-surface-active: #202020;
+      --color-accent-primary: #E96914;
+      --color-accent-hover: #F27A2B;
+      --color-accent-active: #D05A0C;
+      --color-text-primary: #F5F3EF;
+      --color-text-secondary: #A3A3A3;
+      --color-text-muted: #666666;
+      --color-border-divider: #303030;
+      --color-border-subtle: #222222;
+      --color-indicator-record: #E53935;
+      --color-focus-ring: rgba(233, 105, 20, 0.45);
+      --radius-control: 8px;
+      --radius-menu: 12px;
+      --radius-drawer: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--color-bg-primary);
+      color: var(--color-text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Window Container */
+    #window-shell {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: var(--color-bg-primary);
+      border: 1px solid var(--color-border-subtle);
+    }
+
+    /* Top Bar */
+    .top-bar {
+      height: 38px;
+      background: linear-gradient(180deg, rgba(20,20,20,0.85) 0%, rgba(8,9,9,0.7) 100%);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      z-index: 100;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      transition: opacity 0.3s ease;
+    }
+
+    .top-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .app-icon {
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .app-icon svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .window-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-secondary);
+      letter-spacing: 0.2px;
+    }
+
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .window-ctrl-btn {
+      background: none;
+      border: none;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .window-ctrl-btn:hover {
+      color: var(--color-text-primary);
+      background: var(--color-surface-hover);
+    }
+
+    /* Video Canvas */
+    #media-canvas {
+      flex: 1;
+      position: relative;
+      background: var(--color-bg-canvas);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      cursor: default;
+    }
+
+    .video-viewport {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Simulated Video Content */
+    .video-mock-bg {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, #111418 0%, #000000 70%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .video-mock-graphic {
+      width: 80px;
+      height: 80px;
+      opacity: 0.15;
+    }
+
+    .subtitle-overlay {
+      position: absolute;
+      bottom: 70px;
+      width: 100%;
+      text-align: center;
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    .subtitle-text {
+      display: inline-block;
+      font-size: 22px;
+      font-weight: 600;
+      color: #FFFFFF;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8);
+      background: rgba(0,0,0,0.35);
+      padding: 4px 14px;
+      border-radius: 6px;
+      transition: font-size 0.2s ease, color 0.2s ease;
+    }
+
+    /* Context Menu */
+    .context-menu {
+      position: absolute;
+      width: 250px;
+      background: rgba(25, 25, 25, 0.94);
+      backdrop-filter: blur(24px) saturate(140%);
+      border: 1px solid var(--color-border-divider);
+      border-radius: var(--radius-menu);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 1px rgba(255,255,255,0.1);
+      padding: 6px 0;
+      z-index: 1000;
+      display: none;
+      animation: menuPop 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes menuPop {
+      from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 14px;
+      font-size: 13px;
+      color: var(--color-text-primary);
+      cursor: pointer;
+      transition: background 0.12s ease;
+    }
+
+    .menu-item:hover {
+      background: var(--color-surface-hover);
+    }
+
+    .menu-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .menu-icon {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .menu-shortcut {
+      font-size: 11px;
+      color: var(--color-text-secondary);
+      font-weight: 500;
+    }
+
+    .menu-chevron {
+      color: var(--color-text-muted);
+      font-size: 12px;
+    }
+
+    .menu-divider {
+      height: 1px;
+      background: var(--color-border-divider);
+      margin: 5px 0;
+    }
+
+    /* Bottom Playback Bar */
+    .playback-bar {
+      height: 64px;
+      background: linear-gradient(180deg, rgba(14,14,14,0.95) 0%, rgba(8,9,9,0.98) 100%);
+      border-top: 1px solid rgba(255,255,255,0.04);
+      display: flex;
+      flex-direction: column;
+      padding: 0 16px;
+      z-index: 100;
+      position: relative;
+      transition: opacity 0.3s ease;
+    }
+
+    /* Seek Timeline */
+    .timeline-container {
+      width: 100%;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .timeline-track {
+      width: 100%;
+      height: 5px;
+      background: #252525;
+      border-radius: 3px;
+      position: relative;
+      overflow: visible;
+      transition: height 0.15s ease;
+    }
+
+    .timeline-container:hover .timeline-track {
+      height: 8px;
+    }
+
+    .timeline-progress {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0.13%; /* 2s / 1540s */
+      background: var(--color-accent-primary);
+      border-radius: 3px;
+    }
+
+    .timeline-thumb {
+      position: absolute;
+      top: 50%;
+      left: 0.13%;
+      transform: translate(-50%, -50%) scale(0);
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #FFF;
+      box-shadow: 0 0 6px var(--color-accent-primary);
+      transition: transform 0.15s ease;
+    }
+
+    .timeline-container:hover .timeline-thumb {
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .timeline-tooltip {
+      position: absolute;
+      bottom: 22px;
+      transform: translateX(-50%);
+      background: var(--color-surface-elevated);
+      border: 1px solid var(--color-border-divider);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: monospace;
+      color: var(--color-text-primary);
+      pointer-events: none;
+      display: none;
+    }
+
+    /* Controls Row */
+    .controls-row {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .controls-left, .controls-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ctrl-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-control);
+      background: transparent;
+      border: none;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.12s ease;
+    }
+
+    .ctrl-btn:hover {
+      background: var(--color-surface-hover);
+      color: var(--color-text-primary);
+    }
+
+    .ctrl-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Distinct Tomato Play/Pause Button */
+    .play-btn-hero {
+      width: 38px;
+      height: 32px;
+      background: var(--color-accent-primary);
+      color: #FFF;
+      border-radius: var(--radius-control);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      cursor: pointer;
+      transition: background 0.12s ease, transform 0.08s ease;
+    }
+
+    .play-btn-hero:hover {
+      background: var(--color-accent-hover);
+    }
+
+    .play-btn-hero:active {
+      transform: scale(0.96);
+      background: var(--color-accent-active);
+    }
+
+    .play-btn-hero svg {
+      width: 16px;
+      height: 16px;
+      fill: #FFF;
+    }
+
+    .time-display {
+      font-size: 12px;
+      font-family: "SF Mono", "Consolas", monospace;
+      color: var(--color-text-secondary);
+      margin-left: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .time-duration {
+      font-size: 12px;
+      font-family: "SF Mono", "Consolas", monospace;
+      color: var(--color-text-muted);
+      margin-right: 8px;
+    }
+
+    /* Tapered Cone Volume Slider */
+    .cone-volume-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 4px;
+      cursor: pointer;
+    }
+
+    .cone-wedge-track {
+      width: 64px;
+      height: 14px;
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+    }
+
+    .cone-bar {
+      flex: 1;
+      background: #333;
+      border-radius: 1px;
+      transition: height 0.1s ease, background 0.15s ease;
+    }
+
+    /* Side Drawers (Queue / Subtitles / Settings) */
+    .side-drawer {
+      position: absolute;
+      top: 38px;
+      right: 0;
+      bottom: 64px;
+      width: 360px;
+      background: rgba(22, 22, 22, 0.96);
+      backdrop-filter: blur(28px) saturate(150%);
+      border-left: 1px solid var(--color-border-divider);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: -10px 0 30px rgba(0,0,0,0.6);
+    }
+
+    .side-drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--color-border-divider);
+    }
+
+    .drawer-title {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .drawer-close {
+      background: none;
+      border: none;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    .drawer-close:hover {
+      color: var(--color-text-primary);
+    }
+
+    .drawer-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Subtitle Workspace Controls */
+    .control-card {
+      background: var(--color-surface-elevated);
+      border: 1px solid var(--color-border-divider);
+      border-radius: var(--radius-control);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .delay-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .delay-val {
+      font-family: monospace;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--color-accent-primary);
+    }
+
+    .step-btn-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    .step-btn {
+      background: var(--color-surface-hover);
+      border: 1px solid var(--color-border-divider);
+      color: var(--color-text-primary);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .step-btn:hover {
+      background: #333;
+    }
+
+    /* Queue List */
+    .queue-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .queue-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--color-surface-elevated);
+      border: 1px solid var(--color-border-subtle);
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.12s ease;
+    }
+
+    .queue-item:hover {
+      background: var(--color-surface-hover);
+    }
+
+    .queue-item.active {
+      border-color: var(--color-accent-primary);
+      background: rgba(233, 105, 20, 0.1);
+    }
+
+    .queue-item-title {
+      font-weight: 500;
+    }
+
+    .queue-item.active .queue-item-title {
+      color: var(--color-accent-primary);
+    }
+
+    .queue-item-time {
+      font-size: 11px;
+      color: var(--color-text-muted);
+      font-family: monospace;
+    }
+
+    /* Fullscreen Auto-Hide */
+    .fullscreen-mode .top-bar.idle-hide,
+    .fullscreen-mode .playback-bar.idle-hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="window-shell">
+    
+    <!-- Top Bar -->
+    <header class="top-bar" id="top-bar">
+      <div class="top-bar-left">
+        <div class="app-icon" title="Tomato Menu">
+          <svg viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="35" r="22" fill="#E96914" />
+            <path d="M32 14 C32 10, 35 6, 38 5" stroke="#7CB342" stroke-width="3" stroke-linecap="round" />
+            <path d="M32 15 L26 19 L30 15 L32 15 L34 15 L38 19 L32 15 Z" fill="#7CB342" />
+          </svg>
+        </div>
+        <span class="window-title" id="media-title">The Wand S01E04</span>
+      </div>
+
+      <div class="top-bar-right">
+        <button class="window-ctrl-btn" id="btn-min" title="Minimize">—</button>
+        <button class="window-ctrl-btn" id="btn-max" title="Maximize">□</button>
+        <button class="window-ctrl-btn" id="btn-close" title="Close">✕</button>
+      </div>
+    </header>
+
+    <!-- Video Canvas -->
+    <main id="media-canvas">
+      <div class="video-viewport" id="video-viewport">
+        <div class="video-mock-bg">
+          <svg class="video-mock-graphic" viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="35" r="22" fill="#E96914" />
+            <path d="M32 14 C32 10, 35 6, 38 5" stroke="#7CB342" stroke-width="3" stroke-linecap="round" />
+            <path d="M32 15 L26 19 L30 15 L32 15 L34 15 L38 19 L32 15 Z" fill="#7CB342" />
+          </svg>
+        </div>
+
+        <!-- Subtitles -->
+        <div class="subtitle-overlay" id="subtitle-overlay">
+          <span class="subtitle-text" id="subtitle-display">You were chosen for this journey.</span>
+        </div>
+      </div>
+
+      <!-- Context Menu (Exact match to provided screenshot) -->
+      <nav class="context-menu" id="context-menu">
+        <div class="menu-item" data-action="toggle-play">
+          <div class="menu-left">
+            <span class="menu-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#E96914" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>
+            <span>Play</span>
+          </div>
+          <span class="menu-shortcut">Space</span>
+        </div>
+
+        <div class="menu-item" data-action="stop">
+          <div class="menu-left">
+            <span class="menu-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#A3A3A3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></span>
+            <span>Stop</span>
+          </div>
+          <span class="menu-shortcut">S</span>
+        </div>
+
+        <div class="menu-item" data-action="prev">
+          <div class="menu-left">
+            <span class="menu-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#A3A3A3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg></span>
+            <span>Previous Item</span>
+          </div>
+          <span class="menu-shortcut">P</span>
+        </div>
+
+        <div class="menu-item" data-action="next">
+          <div class="menu-left">
+            <span class="menu-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#A3A3A3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg></span>
+            <span>Next Item</span>
+          </div>
+          <span class="menu-shortcut">N</span>
+        </div>
+
+        <div class="menu-item" data-action="record">
+          <div class="menu-left">
+            <span class="menu-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#E53935" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="#E53935"/></svg></span>
+            <span>Record</span>
+          </div>
+          <span class="menu-shortcut">R</span>
+        </div>
+
+        <div class="menu-divider"></div>
+
+        <div class="menu-item" data-action="open-playback">
+          <div class="menu-left">
+            <span class="menu-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#A3A3A3" stroke-width="2"><polygon points="6 4 18 12 6 20 6 4" fill="#E96914"/></svg></span>
+            <span>Playback</span>
+          </div>
+          <span class="menu-chevron">&gt;</span>
+        </div>
+
+        <div class="menu-item" data-action="open-video">
+          <div class="menu-left">
+            <span class="menu-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#A3A3A3" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="8" x2="22" y2="8"/></svg></span>
+            <span>Video</span>
+          </div>
+          <span class="menu-chevron">&gt;</span>
+        </div>
+
+        <div class="menu-item" data-action="open-audio">
+          <div class="menu-left">
+            <span class="menu-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#A3A3A3" stroke-width="2"><line x1="4" y1="9" x2="4" y2="15"/><line x1="8" y1="5" x2="8" y2="19"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="16" y1="7" x2="16" y2="17"/><line x1="20" y1="10" x2="20" y2="14"/></svg></span>
+            <span>Audio</span>
+          </div>
+          <span class="menu-chevron">&gt;</span>
+        </div>
+
+        <div class="menu-item" data-action="open-subtitles">
+          <div class="menu-left">
+            <span class="menu-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#A3A3A3" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="7" y1="14" x2="12" y2="14" stroke="#E96914"/><line x1="7" y1="10" x2="17" y2="10"/></svg></span>
+            <span>Subtitle</span>
+          </div>
+          <span class="menu-chevron">&gt;</span>
+        </div>
+
+        <div class="menu-item" data-action="open-settings">
+          <div class="menu-left">
+            <span class="menu-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#A3A3A3" stroke-width="2"><circle cx="12" cy="12" r="3" stroke="#E96914"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+            <span>More Settings</span>
+          </div>
+          <span class="menu-chevron">&gt;</span>
+        </div>
+
+        <div class="menu-item" data-action="open-queue">
+          <div class="menu-left">
+            <span class="menu-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#A3A3A3" stroke-width="2"><path d="M11 6h10M11 12h10M11 18h6"/><circle cx="5" cy="18" r="3" fill="#E96914"/></svg></span>
+            <span>Playlist</span>
+          </div>
+          <span class="menu-chevron">&gt;</span>
+        </div>
+
+        <div class="menu-item" data-action="open-media">
+          <div class="menu-left">
+            <span class="menu-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#A3A3A3" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8" stroke="#E96914"/></svg></span>
+            <span>Open Media</span>
+          </div>
+          <span class="menu-chevron">&gt;</span>
+        </div>
+
+        <div class="menu-divider"></div>
+
+        <div class="menu-item" data-action="quit">
+          <div class="menu-left">
+            <span class="menu-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#A3A3A3" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+            <span>Quit Tomato</span>
+          </div>
+          <span class="menu-shortcut">Ctrl + Q</span>
+        </div>
+      </nav>
+    </main>
+
+    <!-- Subtitle Workspace Drawer -->
+    <aside class="side-drawer" id="subtitle-drawer">
+      <div class="drawer-header">
+        <span class="drawer-title">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#E96914" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="7" y1="14" x2="12" y2="14"/><line x1="7" y1="10" x2="17" y2="10"/></svg>
+          Subtitle Workspace
+        </span>
+        <button class="drawer-close" id="close-subtitle-drawer">✕</button>
+      </div>
+
+      <div class="drawer-content">
+        <!-- Delay Calibration -->
+        <div class="control-card">
+          <span class="card-label">Timing Calibration</span>
+          <div class="delay-row">
+            <span class="delay-val" id="delay-readout">0 ms</span>
+            <div class="step-btn-group">
+              <button class="step-btn" id="sub-delay-minus">-50 ms</button>
+              <button class="step-btn" id="sub-delay-plus">+50 ms</button>
+              <button class="step-btn" id="sub-delay-reset">Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Track Selection -->
+        <div class="control-card">
+          <span class="card-label">Active Track</span>
+          <div class="queue-list">
+            <div class="queue-item active">
+              <span class="queue-item-title">English [SDH] (Embedded)</span>
+              <span class="queue-item-time">Active</span>
+            </div>
+            <div class="queue-item">
+              <span class="queue-item-title">Spanish (External SRT)</span>
+              <span class="queue-item-time">Track 2</span>
+            </div>
+            <div class="queue-item">
+              <span class="queue-item-title">Japanese (Dialogue)</span>
+              <span class="queue-item-time">Track 3</span>
+            </div>
+          </div>
+          <button class="step-btn" style="margin-top: 6px; width: 100%;">+ Load External Subtitle File...</button>
+        </div>
+
+        <!-- Typography Styling Preview -->
+        <div class="control-card">
+          <span class="card-label">Visual Styling</span>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:12px; color:var(--color-text-secondary);">Font Scale</span>
+            <div class="step-btn-group">
+              <button class="step-btn" id="font-smaller">A-</button>
+              <button class="step-btn" id="font-larger">A+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Queue Drawer -->
+    <aside class="side-drawer" id="queue-drawer">
+      <div class="drawer-header">
+        <span class="drawer-title">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#E96914" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><polygon points="3 4 3 8 6 6 3 4" fill="#E96914"/></svg>
+          Active Playback Queue
+        </span>
+        <button class="drawer-close" id="close-queue-drawer">✕</button>
+      </div>
+
+      <div class="drawer-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <span style="font-size:12px; color:var(--color-text-muted);">4 items in current session</span>
+          <button class="step-btn" id="clear-queue-btn">Clear</button>
+        </div>
+
+        <ul class="queue-list" id="queue-item-container">
+          <li class="queue-item active">
+            <div>
+              <div class="queue-item-title">The Wand S01E04 — Shadows</div>
+              <div style="font-size:11px; color:var(--color-text-muted);">Season 1 &bull; 1080p</div>
+            </div>
+            <span class="queue-item-time">25:40</span>
+          </li>
+          <li class="queue-item">
+            <div>
+              <div class="queue-item-title">The Wand S01E05 — Reckoning</div>
+              <div style="font-size:11px; color:var(--color-text-muted);">Season 1 &bull; 1080p</div>
+            </div>
+            <span class="queue-item-time">24:15</span>
+          </li>
+          <li class="queue-item">
+            <div>
+              <div class="queue-item-title">The Wand S01E06 — The Threshold</div>
+              <div style="font-size:11px; color:var(--color-text-muted);">Season 1 &bull; 1080p</div>
+            </div>
+            <span class="queue-item-time">28:02</span>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Bottom Playback Bar -->
+    <footer class="playback-bar" id="playback-bar">
+      
+      <!-- Thick Timeline Scrubber -->
+      <div class="timeline-container" id="timeline-container">
+        <div class="timeline-track">
+          <div class="timeline-progress" id="timeline-progress"></div>
+          <div class="timeline-thumb" id="timeline-thumb"></div>
+        </div>
+        <div class="timeline-tooltip" id="timeline-tooltip">00:00:02</div>
+      </div>
+
+      <!-- Controls Row -->
+      <div class="controls-row">
+        
+        <!-- Left Action Group -->
+        <div class="controls-left">
+          <button class="ctrl-btn" id="btn-prev" title="Previous (P)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/>
+            </svg>
+          </button>
+
+          <button class="play-btn-hero" id="btn-play" title="Play/Pause (Space)">
+            <svg id="play-icon" viewBox="0 0 24 24">
+              <polygon points="6 4 20 12 6 20 6 4"/>
+            </svg>
+          </button>
+
+          <button class="ctrl-btn" id="btn-next" title="Next (N)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/>
+            </svg>
+          </button>
+
+          <span class="time-display" id="time-elapsed">00:00:02</span>
+        </div>
+
+        <!-- Right Action Group -->
+        <div class="controls-right">
+          <span class="time-duration" id="time-duration">00:25:40</span>
+
+          <!-- Tapered Cone Volume Slider -->
+          <div class="cone-volume-container" id="cone-volume" title="Volume: 80%">
+            <button class="ctrl-btn" style="width:26px; height:26px;" id="btn-mute">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              </svg>
+            </button>
+            <div class="cone-wedge-track" id="cone-wedge-track">
+              <!-- 8 tapered wedges with gradient height -->
+              <div class="cone-bar" style="height: 3px;" data-level="1"></div>
+              <div class="cone-bar" style="height: 4.5px;" data-level="2"></div>
+              <div class="cone-bar" style="height: 6px;" data-level="3"></div>
+              <div class="cone-bar" style="height: 7.5px;" data-level="4"></div>
+              <div class="cone-bar" style="height: 9px;" data-level="5"></div>
+              <div class="cone-bar" style="height: 10.5px;" data-level="6"></div>
+              <div class="cone-bar" style="height: 12px;" data-level="7"></div>
+              <div class="cone-bar" style="height: 14px;" data-level="8"></div>
+            </div>
+          </div>
+
+          <!-- Subtitles Toggle -->
+          <button class="ctrl-btn" id="btn-subtitles" title="Subtitles Workspace (V)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <rect x="3" y="5" width="18" height="14" rx="2"/>
+              <line x1="7" y1="14" x2="11" y2="14"/>
+              <line x1="13" y1="14" x2="17" y2="14"/>
+              <line x1="7" y1="10" x2="17" y2="10"/>
+            </svg>
+          </button>
+
+          <!-- Audio Tracks Toggle -->
+          <button class="ctrl-btn" id="btn-audio" title="Audio Tracks (B)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+            </svg>
+          </button>
+
+          <!-- Queue Drawer Toggle -->
+          <button class="ctrl-btn" id="btn-queue" title="Queue (Q)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+              <polygon points="3 4 3 8 6 6 3 4" fill="currentColor"/>
+            </svg>
+          </button>
+
+          <!-- Fullscreen Toggle -->
+          <button class="ctrl-btn" id="btn-fullscreen" title="Fullscreen (F)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+          </button>
+
+          <!-- Settings Cog -->
+          <button class="ctrl-btn" id="btn-settings" title="Settings (Ctrl+,)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+        </div>
+
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    // State
+    let isPlaying = false;
+    let currentTimeSec = 2;
+    const totalDurationSec = 1540; // 25:40
+    let volumeLevel = 6; // 1 to 8 (6 = 75%)
+    let subtitleDelayMs = 0;
+    let subtitleFontSize = 22;
+    let isMuted = false;
+    let isFullscreen = false;
+    let idleTimer = null;
+
+    // Elements
+    const btnPlay = document.getElementById('btn-play');
+    const playIcon = document.getElementById('play-icon');
+    const timeElapsed = document.getElementById('time-elapsed');
+    const timelineProgress = document.getElementById('timeline-progress');
+    const timelineThumb = document.getElementById('timeline-thumb');
+    const timelineContainer = document.getElementById('timeline-container');
+    const timelineTooltip = document.getElementById('timeline-tooltip');
+    const contextMenu = document.getElementById('context-menu');
+    const mediaCanvas = document.getElementById('media-canvas');
+    const coneBars = document.querySelectorAll('.cone-bar');
+    const subtitleDrawer = document.getElementById('subtitle-drawer');
+    const queueDrawer = document.getElementById('queue-drawer');
+    const btnSubtitles = document.getElementById('btn-subtitles');
+    const btnQueue = document.getElementById('btn-queue');
+    const delayReadout = document.getElementById('delay-readout');
+    const subtitleDisplay = document.getElementById('subtitle-display');
+
+    // Format Seconds to hh:mm:ss
+    function formatTime(seconds) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = Math.floor(seconds % 60);
+      const mm = String(m).padStart(2, '0');
+      const ss = String(s).padStart(2, '0');
+      return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+    }
+
+    // Toggle Play/Pause
+    function togglePlay() {
+      isPlaying = !isPlaying;
+      if (isPlaying) {
+        playIcon.innerHTML = '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>';
+        btnPlay.title = "Pause (Space)";
+      } else {
+        playIcon.innerHTML = '<polygon points="6 4 20 12 6 20 6 4"/>';
+        btnPlay.title = "Play (Space)";
+      }
+    }
+
+    btnPlay.addEventListener('click', togglePlay);
+
+    // Update Progress
+    function updateProgress(sec) {
+      currentTimeSec = Math.max(0, Math.min(totalDurationSec, sec));
+      const pct = (currentTimeSec / totalDurationSec) * 100;
+      timelineProgress.style.width = pct + '%';
+      timelineThumb.style.left = pct + '%';
+      timeElapsed.textContent = formatTime(currentTimeSec);
+    }
+
+    // Timeline Scrubbing
+    timelineContainer.addEventListener('click', (e) => {
+      const rect = timelineContainer.getBoundingClientRect();
+      const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      updateProgress(pos * totalDurationSec);
+    });
+
+    timelineContainer.addEventListener('mousemove', (e) => {
+      const rect = timelineContainer.getBoundingClientRect();
+      const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      timelineTooltip.style.display = 'block';
+      timelineTooltip.style.left = (e.clientX - rect.left) + 'px';
+      timelineTooltip.textContent = formatTime(pos * totalDurationSec);
+    });
+
+    timelineContainer.addEventListener('mouseleave', () => {
+      timelineTooltip.style.display = 'none';
+    });
+
+    // Volume Cone Update
+    function updateVolumeCone() {
+      coneBars.forEach((bar, idx) => {
+        if (!isMuted && (idx + 1) <= volumeLevel) {
+          if (idx < 5) bar.style.background = '#8BC34A'; // Green
+          else if (idx < 7) bar.style.background = '#FFC107'; // Yellow/Amber
+          else bar.style.background = '#E96914'; // Orange / Boost
+        } else {
+          bar.style.background = '#333';
+        }
+      });
+    }
+    updateVolumeCone();
+
+    coneBars.forEach((bar) => {
+      bar.addEventListener('click', (e) => {
+        e.stopPropagation();
+        volumeLevel = parseInt(bar.getAttribute('data-level'), 10);
+        isMuted = false;
+        updateVolumeCone();
+      });
+    });
+
+    document.getElementById('btn-mute').addEventListener('click', () => {
+      isMuted = !isMuted;
+      updateVolumeCone();
+    });
+
+    // Right-Click Context Menu
+    mediaCanvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const rect = mediaCanvas.getBoundingClientRect();
+      let x = e.clientX - rect.left;
+      let y = e.clientY - rect.top;
+
+      // Keep within canvas
+      if (x + 250 > rect.width) x = rect.width - 260;
+      if (y + 350 > rect.height) y = rect.height - 360;
+
+      contextMenu.style.left = x + 'px';
+      contextMenu.style.top = y + 'px';
+      contextMenu.style.display = 'block';
+    });
+
+    window.addEventListener('click', () => {
+      contextMenu.style.display = 'none';
+    });
+
+    // Context Menu Actions
+    document.querySelectorAll('.menu-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        const action = item.getAttribute('data-action');
+        if (action === 'toggle-play') togglePlay();
+        else if (action === 'open-subtitles') subtitleDrawer.classList.toggle('open');
+        else if (action === 'open-queue') queueDrawer.classList.toggle('open');
+        else if (action === 'stop') { isPlaying = false; updateProgress(0); togglePlay(); }
+      });
+    });
+
+    // Drawers
+    btnSubtitles.addEventListener('click', () => {
+      subtitleDrawer.classList.toggle('open');
+      queueDrawer.classList.remove('open');
+    });
+
+    btnQueue.addEventListener('click', () => {
+      queueDrawer.classList.toggle('open');
+      subtitleDrawer.classList.remove('open');
+    });
+
+    document.getElementById('close-subtitle-drawer').addEventListener('click', () => subtitleDrawer.classList.remove('open'));
+    document.getElementById('close-queue-drawer').addEventListener('click', () => queueDrawer.classList.remove('open'));
+
+    // Subtitle Delays
+    function updateSubtitleDelay(delta) {
+      subtitleDelayMs += delta;
+      delayReadout.textContent = (subtitleDelayMs > 0 ? `+${subtitleDelayMs}` : `${subtitleDelayMs}`) + ' ms';
+    }
+
+    document.getElementById('sub-delay-plus').addEventListener('click', () => updateSubtitleDelay(50));
+    document.getElementById('sub-delay-minus').addEventListener('click', () => updateSubtitleDelay(-50));
+    document.getElementById('sub-delay-reset').addEventListener('click', () => { subtitleDelayMs = 0; updateSubtitleDelay(0); });
+
+    // Font Scale
+    document.getElementById('font-larger').addEventListener('click', () => {
+      subtitleFontSize += 2;
+      subtitleDisplay.style.fontSize = subtitleFontSize + 'px';
+    });
+    document.getElementById('font-smaller').addEventListener('click', () => {
+      subtitleFontSize = Math.max(14, subtitleFontSize - 2);
+      subtitleDisplay.style.fontSize = subtitleFontSize + 'px';
+    });
+
+    // Fullscreen Toggle
+    const btnFullscreen = document.getElementById('btn-fullscreen');
+    btnFullscreen.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+        isFullscreen = true;
+      } else {
+        document.exitFullscreen().catch(() => {});
+        isFullscreen = false;
+      }
+    });
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.code === 'KeyF') {
+        btnFullscreen.click();
+      } else if (e.code === 'KeyM') {
+        isMuted = !isMuted;
+        updateVolumeCone();
+      } else if (e.code === 'ArrowRight') {
+        updateProgress(currentTimeSec + 5);
+      } else if (e.code === 'ArrowLeft') {
+        updateProgress(currentTimeSec - 5);
+      } else if (e.code === 'KeyG') {
+        updateSubtitleDelay(-50);
+      } else if (e.code === 'KeyH') {
+        updateSubtitleDelay(50);
+      }
+    });
+
+    // Auto Playback Tick simulation
+    setInterval(() => {
+      if (isPlaying) {
+        updateProgress(currentTimeSec + 1);
+      }
+    }, 1000);
+  </script>
+</body>
+</html>

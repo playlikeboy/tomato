@@ -1,89 +1,170 @@
-# Tomato Roadmap
+# 🗺️ Tomato — Implementation Roadmap & Milestones
 
-**Status:** proposed order. Dates and estimates are intentionally omitted until the architecture and build environment are validated.
+> **Document Version:** 1.0.0  
+> **Target Release:** v0.1.0-alpha to v1.0.0  
+> **Status:** Active Execution Plan  
 
-## Phase 0 — Repository audit and feasibility
+---
 
-- [ ] Confirm source repository, branch, working tree, and baseline commit.
-- [ ] Compare standalone Qt/QML + libVLC app with modifying VLC's Qt UI.
-- [ ] Verify Qt, C++ toolchain, libVLC headers/runtime, and packaging availability on target platforms.
-- [ ] Create architecture, UX, privacy, build, and licensing documents.
-- [ ] Identify one small, redistributable media test file and expected behavior.
-- [ ] Decide first-release platforms and supported scope.
+## 1. Phased Development Overview
 
-**Exit criteria:** documented architecture decision, a verified build strategy, and a clear first vertical slice.
+Tomato is developed across seven rigorous, sequential phases. Each phase establishes a verified, testable baseline before subsequent layers are built.
 
-## Phase 1 — Brand and shell
+```
+Phase 0 ──► Phase 1 ──► Phase 2 ──► Phase 3 ──► Phase 4 ──► Phase 5 ──► Phase 6
+Audit &     Design &    Core Media  Queue &     Subtitle &  Settings &  Packaging &
+Feasibility App Shell   Playback    Playlists   Audio Hub   A11y/Polish Distribution
+```
 
-- [ ] Establish original Tomato logo and app icon.
-- [ ] Implement design tokens and consistent SVG icon guidelines.
-- [ ] Build the main window, header, canvas placeholder, compact playback bar, menus, and settings shell.
-- [ ] Add keyboard focus states and basic accessibility.
-- [ ] Make unsupported controls visibly unavailable rather than pretending to work.
+---
 
-**Exit criteria:** runnable interface shell with responsive window layout and no dead interactive controls.
+## Phase 0: Repository Audit & Build Feasibility (CURRENT)
 
-## Phase 2 — Real playback vertical slice
+**Objective:** Audit developer toolchains, inspect LibVLC integration capabilities on native operating systems, establish architectural boundaries, and verify compile/link pathways.
 
-- [ ] Implement media-engine adapter and lifecycle.
-- [ ] Open a local media file.
-- [ ] Play, pause, stop, seek, and control volume.
-- [ ] Display time, duration, loading and error states.
-- [ ] Select supported audio and subtitle tracks.
-- [ ] Handle end of playback, rapid file changes, and application shutdown.
+### Concrete Tasks
+- [x] Audit local environment: Clang/C++20, CMake, Darwin arm64 architecture, Homebrew libraries.
+- [x] Verify LibVLC binary compatibility: Discover headers (`include/vlc`) and shared dylibs (`libvlc.dylib`, `libvlccore.dylib`) inside `/Applications/VLC.app`.
+- [x] Compile and execute native LibVLC verification harness (`tests/test_libvlc_harness`).
+- [x] Formalize architectural specification: Evaluate Option A (VLC Fork) vs Option B (Standalone Desktop Shell).
+- [x] Draft core planning deliverables (`VISION.md`, `ARCHITECTURE.md`, `UI_UX_SPEC.md`, `ROADMAP.md`, `DECISIONS.md`, `SECURITY_AND_PRIVACY.md`, `BUILD_AND_TESTING.md`).
+- [x] Establish Git repository, branch strategy (`main`), and initial commit structure.
 
-**Exit criteria:** integration tests verify the basic playback path with a known test fixture.
+### Acceptance Criteria
+- Native C/C++ test program links dynamically with LibVLC, initializes an engine instance, queries runtime version (`3.0.20 Vetinari`), and cleanly frees resources with zero memory faults.
+- All core planning documents approved and cross-referenced.
 
-## Phase 3 — Queue, playlists and library basics
+---
 
-- [ ] Add a distinct session queue.
-- [ ] Reorder, skip, remove and clear queue items.
-- [ ] Save and reopen named playlists.
-- [ ] Add explicit user-selected library folders.
-- [ ] Search, sort and change library view.
-- [ ] Add configurable recent-media/resume behavior.
+## Phase 1: Brand, Design System & Application Shell
 
-**Exit criteria:** state and persistence tests demonstrate predictable queue and playlist behavior.
+**Objective:** Implement the visual foundation, brand marks, custom vector icons, and an interactive desktop window shell adhering to the `#080909` dark aesthetic.
 
-## Phase 4 — Subtitle/audio workflow
+### Concrete Tasks
+- [ ] Implement vector brand assets: `assets/logo/tomato-logo.svg` and `assets/logo/tomato-mark.svg`.
+- [ ] Build the complete 24x24 SVG icon set:
+  - Toolbar monochrome: `play`, `pause`, `stop`, `previous`, `next`, `volume-high`, `volume-low`, `volume-mute`, `subtitles`, `audio-track`, `queue`, `playlist`, `settings`, `fullscreen`, `pip`, `record`.
+  - Context menu two-tone: `menu-playback`, `menu-video`, `menu-audio`, `menu-subtitle`, `menu-settings`, `menu-playlist`, `menu-open`.
+- [ ] Build desktop application window shell with frameless dark chrome, custom title bar, and native window control bridges.
+- [ ] Implement responsive QML layout regions:
+  - Header bar with title display.
+  - Black media canvas area (`#000000`).
+  - Elevated bottom control bar (`#191919`).
+  - Context menu component with subtle entry transitions and keyboard navigation.
+- [ ] Implement the tapered cone-inspired volume widget geometry.
 
-- [ ] Open an external subtitle file.
-- [ ] Adjust subtitle delay and supported styling.
-- [ ] Make audio-track selection clear.
-- [ ] Add default track/language preferences.
-- [ ] Research folder/playlist subtitle matching.
-- [ ] Evaluate provider integrations, privacy, and terms before implementation.
-- [ ] Prototype any subtitle timeline/visual synchronization feature before committing to it.
+### Dependencies
+- Phase 0 verification complete; CMake build setup for QML and C++ application shell.
 
-**Exit criteria:** core local subtitle operations are tested; any remote features are explicitly documented and opt-in.
+### Deferred
+- Live video decoding into the canvas (Phase 2).
+- Network streaming input fields (Phase 6).
 
-## Phase 5 — Preferences, customization and polish
+---
 
-- [ ] Searchable preferences and progressive disclosure.
-- [ ] Keyboard shortcut reference and conflict handling.
-- [ ] Theme/accent selection.
-- [ ] Toolbar customization and named profiles, if supported by the chosen architecture.
-- [ ] Accessibility, localization, high-DPI and narrow-window review.
-- [ ] Profile and settings migration tests.
+## Phase 2: Core Media Playback & Essential Controls
 
-**Exit criteria:** usability review plus automated coverage for core settings behavior.
+**Objective:** Connect the application shell to the LibVLC engine adapter for rock-solid local video and audio playback.
 
-## Phase 6 — Network workflows and release hardening
+### Concrete Tasks
+- [ ] Implement `IPlayerEngine` abstract C++ interface in `engine/player-interface/player_interface.h`.
+- [ ] Implement `LibVLCAdapter` in `engine/libvlc-adapter/` wrapping `libvlc_media_player_t`.
+- [ ] Connect native video rendering surface:
+  - macOS: Embed Cocoa `NSView` using `libvlc_media_player_set_nsobject()`.
+  - Windows: Embed Win32 `HWND` using `libvlc_media_player_set_hwnd()`.
+  - Linux: Embed X11 `Drawable` or Wayland surface.
+- [ ] Implement core playback controls: Open file, Play, Pause, Stop, Seek, Step forward/backward.
+- [ ] Implement thick timeline scrubber with real-time position updates, drag interaction, and timestamp displays (`hh:mm:ss`).
+- [ ] Connect audio volume and mute controls to LibVLC audio APIs.
+- [ ] Implement keyboard shortcut dispatcher (`Space`, `F`, Arrow keys, `M`, `S`).
+- [ ] Implement auto-hiding controls during fullscreen playback with smooth fade transitions on pointer activity.
 
-- [ ] Add network stream opening with clear validation/errors.
-- [ ] Audit resource limits, timeouts and unsafe file/URL handling.
-- [ ] Build platform packages and file associations as appropriate.
-- [ ] Add CI for formatting, tests, and supported builds.
-- [ ] Complete third-party license inventory and attribution.
-- [ ] Document install, upgrade, rollback, debugging and support workflows.
-- [ ] Test crash recovery and resource cleanup.
+### Acceptance Criteria
+- Opens local MP4, MKV, AVI, and WebM video files without hitching or frame drop.
+- Scrubbing the seek bar responds instantly; time readouts stay in perfect sync.
+- Zero crashes on rapid open, seek, and close cycles.
 
-**Exit criteria:** release candidates are built and tested on each platform claimed as supported.
+---
 
-## Deferred until justified
+## Phase 3: Queue, Playlists & Local Media Basics
 
-- Cloud accounts, cloud synchronization, remote backend, and telemetry.
-- In-house codec implementation.
-- Automatic subtitle download without explicit user preference.
-- Broad plugin ecosystems and custom scripting.
-- Platforms that lack a verified build and test path.
+**Objective:** Deliver clean, decoupled domain models for the transient playback queue, persistent playlists, and local folder browsing.
+
+### Concrete Tasks
+- [ ] Implement `core/playback/queue_manager`:
+  - Ephemeral session queue.
+  - Operations: Enqueue, Prepend, Remove, Clear, Move/Reorder.
+  - Playback modes: Sequential, Shuffle, Repeat None, Repeat One, Repeat All.
+  - Automatic transition to next queue item on media end.
+- [ ] Implement `core/playback/playlist_store`:
+  - Durable, named collections.
+  - Serialization to standard `.m3u8` playlists and structured Tomato JSON.
+  - Save, load, rename, and export capabilities.
+- [ ] Build the interactive Queue Drawer UI:
+  - Slide-out right panel.
+  - Drag-and-drop reordering with live list animations.
+  - Visual indicator for currently active track.
+- [ ] Drag-and-drop file ingestion:
+  - Dropping video onto canvas immediately starts playback.
+  - Dropping multiple files adds them to the active queue.
+  - Dropping a directory offers to enqueue or browse.
+
+### Acceptance Criteria
+- Unit tests pass for Queue reordering, boundary indices, shuffle integrity, and repeat transitions.
+- Playlists persist across application restarts; modifying the queue never corrupts saved playlists.
+
+---
+
+## Phase 4: Subtitle & Audio Track Workspace
+
+**Objective:** Build Tomato's signature subtitle synchronization and multi-track audio experience.
+
+### Milestone 4.1: Embedded & Local Track Selection
+- [ ] Enumerate embedded subtitle and audio tracks via LibVLC track APIs.
+- [ ] Expose instant track switcher popovers on the control bar.
+- [ ] Add "Load External Subtitle..." file dialog supporting `.srt`, `.ass`, `.vtt`, `.sub`.
+
+### Milestone 4.2: Visual Subtitle Synchronization
+- [ ] Implement Subtitle Delay Calibration Slider:
+  - Range `-5000 ms` to `+5000 ms` with millisecond readout.
+  - Step buttons (`-50 ms`, `+50 ms`) with immediate audio/video re-sync.
+- [ ] Keyboard shortcuts for quick offset adjustment (`G` / `H`).
+- [ ] Real-time subtitle formatting: font family, font size scaling, text color, outline width, and vertical position offset.
+
+### Milestone 4.3: Smart Local Matching & Presets
+- [ ] Automatic sibling directory search for matching subtitle files (`<filename>.srt`, `<filename>.en.srt`).
+- [ ] Per-series subtitle styling presets saved locally.
+
+### Deferred to Milestone 4.4+
+- Remote subtitle provider search (OpenSubtitles REST API) with explicit user consent.
+- Audio waveform visualizer.
+
+---
+
+## Phase 5: Settings, Customization & Accessibility
+
+**Objective:** Provide organized, searchable preferences, custom keyboard shortcuts, and verified WCAG 2.1 AA accessibility.
+
+### Concrete Tasks
+- [ ] Implement `core/preferences/settings_store` with JSON persistence in OS configuration folders (`~/Library/Application Support/Tomato/` on macOS, `%APPDATA%/Tomato/` on Windows).
+- [ ] Build search-indexed Settings window:
+  - General, Appearance, Playback, Subtitles, Audio, Video, Shortcuts, Privacy.
+  - Progressive disclosure: "Simple" mode by default, toggleable "Advanced" options.
+- [ ] Keyboard shortcuts customization editor: Remap keys with conflict detection.
+- [ ] Accessibility audit:
+  - Verify WCAG 2.1 AA contrast across all themes.
+  - Implement full keyboard tab-navigation and focus traps in dialogs.
+  - Screen reader announcements for state changes (e.g., "Paused at 12 minutes 40 seconds").
+
+---
+
+## Phase 6: Network Streams, Packaging & Release Hardening
+
+**Objective:** Add network stream playback, build CI pipelines, package native binaries, and prepare for public open-source release.
+
+### Concrete Tasks
+- [ ] Network stream ingestion: Open HTTP/HTTPS, HLS, RTSP, RTMP URLs.
+- [ ] Build automated CI workflows (GitHub Actions) for macOS (arm64/x86_64), Linux (AppImage/Flatpak), and Windows (MSI/NSIS).
+- [ ] Package standalone macOS `.dmg` and `.app` bundle including LibVLC dylibs and notarization.
+- [ ] Memory leak audit: Run Valgrind / macOS Leaks instrument on 24-hour continuous playback loops.
+- [ ] Prepare open-source launch documentation, release notes, and contribution guidelines.
