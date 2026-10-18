@@ -6,6 +6,8 @@
 
 *A modern, beautifully designed, open-source desktop media player powered by LibVLC.*
 
+> **Status: early development.** The native desktop MVP is being introduced in [PR #1](https://github.com/SH20RAJ/tomato/pull/1). It is not yet a complete replacement for VLC, and playback/platform support must be verified by CI and real-device testing. The library, advanced subtitle workspace, streaming and customization features remain staged roadmap work.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](./LICENSE)
 [![Engine: LibVLC 3.0+](https://img.shields.io/badge/Engine-LibVLC%203.0%2B-orange.svg?style=flat-square)](https://www.videolan.org/vlc/libvlc.html)
 [![Standard: C++20](https://img.shields.io/badge/Standard-C%2B%2B20-blue.svg?style=flat-square)](#)
