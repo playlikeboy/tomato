@@ -1,138 +1,81 @@
-# 🛠️ Tomato — Build & Testing Verification Guide
+# Tomato Build and Testing Guide
 
-> **Document Version:** 1.0.0  
-> **Status:** Empirically Verified Baseline  
+**Status:** build instructions and CI expectations. Environment-specific results must be verified by running the commands below.
 
----
+## Requirements
 
-## 1. System Requirements & Prerequisites
+- CMake 3.22+
+- C++20 compiler
+- LibVLC 3.x development headers, runtime and plug-ins
+- Qt 6 Widgets 6.2+ for the native desktop app
+- Git
 
-### Minimum Toolchains
-- **C++ Compiler:** C++20 compliant compiler
-  - macOS: Apple Clang 15.0+ (Xcode Command Line Tools)
-  - Linux: GCC 12+ or Clang 15+
-  - Windows: MSVC 2022 (v143+) or MinGW-w64 12+
-- **Build System:** CMake 3.22 or higher
-- **Media Engine SDK:** LibVLC 3.0.18+ or 3.0.20+ (Development headers & shared libraries)
-  - macOS: Extracted from `/Applications/VLC.app` or Homebrew
-  - Linux: `libvlc-dev` (Debian/Ubuntu) or `vlc-devel` (Fedora/Arch)
-  - Windows: Official VideoLAN LibVLC Win64 SDK
-- **UI Framework (Phase 1+):** Qt 6.5+ (Qt Quick / QML)
+The current repository is a standalone Tomato application that uses LibVLC; it does not vendor the complete VLC source tree.
 
----
-
-## 2. Verified Local Environment (macOS Darwin arm64)
-
-The build and link feasibility has been empirically audited and verified on the local host:
+## Linux (Ubuntu/Debian)
 
 ```bash
-# Architecture & Kernel
-Host: Apple Silicon (arm64)
-Kernel: Darwin 25.6.0
-C++ Compiler: /usr/bin/clang++ (Apple clang version 17.0.0)
-CMake: /opt/homebrew/bin/cmake (3.31.5)
-LibVLC Location: /Applications/VLC.app/Contents/MacOS/lib/libvlc.dylib
-LibVLC Headers: /Applications/VLC.app/Contents/MacOS/include/vlc/
-LibVLC Runtime Version: 3.0.20 Vetinari (3.0.20-0-g6f0d0ab126)
-```
-
-### Verified Test Results
-
-Executing the native LibVLC test harness yielded:
-```text
-Compiling with LibVLC release
-Compiled against libvlc version: 3.0.20
-Runtime libvlc version: 3.0.20 Vetinari
-Runtime libvlc changeset: 3.0.20-0-g6f0d0ab126
-Successfully initialized LibVLC instance!
-Successfully released LibVLC instance!
-```
-- **Exit Code:** `0`
-- **Memory Violations:** `0`
-- **Link Status:** Clean dynamic link with runtime `@rpath` resolution.
-
----
-
-## 3. Quickstart Build Instructions
-
-### Phase 0: Test Harness & Core Logic
-
-```bash
-# 1. Clone or navigate to the repository
-cd /path/to/tomato
-
-# 2. Run automated environment check
-./scripts/check_env.sh
-
-# 3. Configure CMake
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
-
-# 4. Compile the LibVLC test harness and core test targets
-cmake --build build --target test_libvlc_harness test_queue_manager
-
-# 5. Run tests
+sudo apt-get update
+sudo apt-get install --yes cmake g++ pkg-config libvlc-dev vlc-plugin-base qt6-base-dev
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
+  -DTOMATO_REQUIRE_LIBVLC=ON \
+  -DTOMATO_REQUIRE_DESKTOP_APP=ON
+cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure
+./build/tomato --version
+./build/tomato /path/to/video.mkv
 ```
 
-### Environment Variables
-When running standalone binaries linked against an existing VLC installation on macOS, ensure the plugin path is set:
+The Qt desktop executable requires a graphical session for normal launch. The `--version` check exits before opening a window, so it is suitable for headless CI.
+
+## macOS
+
+Install Xcode Command Line Tools, CMake, Qt 6 and a compatible LibVLC SDK/runtime. Depending on where the SDK is installed, pass its paths explicitly:
+
 ```bash
-export VLC_PLUGIN_PATH="/Applications/VLC.app/Contents/MacOS/plugins"
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
+  -DTOMATO_REQUIRE_LIBVLC=ON \
+  -DTOMATO_REQUIRE_DESKTOP_APP=ON \
+  -DLIBVLC_INCLUDE_DIR=/Applications/VLC.app/Contents/MacOS/include \
+  -DLIBVLC_LIBRARY=/Applications/VLC.app/Contents/MacOS/lib/libvlc.dylib
+cmake --build build --parallel 2
+ctest --test-dir build --output-on-failure
+export VLC_PLUGIN_PATH=/Applications/VLC.app/Contents/MacOS/plugins
+./build/tomato
 ```
 
----
+If your Qt SDK isn't in CMake's default search paths, set `CMAKE_PREFIX_PATH` to the Qt installation prefix. Confirm that the Qt, LibVLC library, and LibVLC plugins share a compatible architecture.
 
-## 4. Multi-Platform Build Configurations
+## Windows
 
-### macOS (Apple Silicon & Intel)
-```bash
-cmake -B build -S . \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DLIBVLC_INCLUDE_DIR="/Applications/VLC.app/Contents/MacOS/include" \
-  -DLIBVLC_LIBRARY="/Applications/VLC.app/Contents/MacOS/lib/libvlc.dylib"
-cmake --build build -j8
-```
+Install Visual Studio 2022 C++ build tools, CMake, Qt 6 Widgets, and a matching LibVLC SDK. Set `LIBVLC_SDK_PATH` to the SDK directory before configuring.
 
-### Linux (Ubuntu / Debian / Fedora)
-```bash
-sudo apt-get install -y cmake g++ libvlc-dev qt6-base-dev qt6-declarative-dev
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j$(nproc)
-```
-
-### Windows (MSVC 2022)
 ```powershell
-cmake -B build -S . -G "Visual Studio 17 2022" -A x64 `
-  -DLIBVLC_SDK_PATH="C:/vlc-3.0.20/sdk"
-cmake --build build --config Release
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
+  -DTOMATO_REQUIRE_LIBVLC=ON `
+  -DTOMATO_REQUIRE_DESKTOP_APP=ON `
+  -DLIBVLC_SDK_PATH="C:/path/to/libvlc-sdk"
+cmake --build build --config Debug
+ctest --test-dir build -C Debug --output-on-failure
 ```
 
----
+Windows packaging and runtime DLL/plugin discovery still require platform-specific verification before a release can claim support.
 
-## 5. Automated Testing Strategy
+## CI
 
-Tomato employs a three-tier testing hierarchy:
+The GitHub Actions workflow installs the Linux development dependencies, configures with both required flags enabled, compiles the native desktop target and executes CTest. A missing engine or Qt dependency should fail configuration rather than silently reporting a core-only build.
 
-```
-┌────────────────────────────────────────────────────────┐
-│   Tier 3: End-to-End Playback Integration Tests        │
-│   (Real video playback, seek precision, track change)  │
-├────────────────────────────────────────────────────────┤
-│   Tier 2: LibVLC Engine Adapter Tests                  │
-│   (Mock media instances, event manager callbacks)      │
-├────────────────────────────────────────────────────────┤
-│   Tier 1: Fast Unit Tests                              │
-│   (QueueManager, PlaylistStore, SubtitleSync, Config)   │
-└────────────────────────────────────────────────────────┘
-```
+See [the Tomato CI workflow](../.github/workflows/ci.yml).
 
-### Tier 1: Unit Tests (Zero Engine Dependencies)
-- `tests/test_queue_manager.cpp`: Validates queue operations (add, remove, reorder, shuffle, repeat modes, auto-advance). Executes in under 15ms.
-- `tests/test_playlist_store.cpp`: Validates M3U8 and JSON parsing and writing, handling special characters and path normalization.
-- `tests/test_settings_store.cpp`: Validates schema migrations, default fallbacks, and serialization integrity.
+## Test tiers
 
-### Tier 2: Engine Integration Tests
-- `tests/test_libvlc_harness.cpp`: Confirms LibVLC instance creation, media descriptor generation, event listener attachments, and clean instance termination without leaks.
+- **Queue unit tests:** queue operations, repeat modes, shuffle navigation, mutations, and observer reentrancy.
+- **LibVLC lifecycle smoke test:** confirms the runtime can create and release a LibVLC instance and media player. It does not prove actual audio/video playback.
+- **Desktop smoke test:** `tomato --version` confirms the executable starts without creating a GUI window.
+- **Manual playback validation:** open a known local media file; verify video/audio, pause/resume, seek, track selection, external subtitle attachment, queue navigation, fullscreen and clean shutdown.
 
-### Tier 3: Playback Validation
-- Tests utilize small, redistributable royalty-free test clips (e.g. 5-second Big Buck Bunny H.264/AAC sample) to verify seek accuracy, track enumeration, and audio muting.
+Use small, redistributable fixtures for automated media tests. Do not mark playback as verified until an actual media fixture is played on the target platform.
+
+## Reporting
+
+For each build or test run, record the command, platform, dependency versions, exit code and relevant output. Distinguish **passed**, **failed**, **blocked by environment**, and **not run**. Never infer a passing build solely from source inspection.

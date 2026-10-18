@@ -115,7 +115,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/DECISIONS.md](docs/DE
 ### Prerequisites
 - Modern C++20 compiler (Apple Clang 15+, GCC 12+, MSVC 2022+)
 - CMake 3.22+
-- LibVLC 3.0.x (found automatically via `/Applications/VLC.app` on macOS or `libvlc-dev` on Linux)
+- LibVLC 3.0.x development headers and runtime (for example, `/Applications/VLC.app` on macOS or `libvlc-dev` plus VLC plugins on Linux)
+- Qt 6 Widgets 6.2+ for the native desktop application
 
 ### Environment Validation
 Run our environment audit script to verify toolchains and LibVLC discovery:
@@ -123,12 +124,29 @@ Run our environment audit script to verify toolchains and LibVLC discovery:
 ./scripts/check_env.sh
 ```
 
-### Build & Run Test Harness
+### Build, Test & Run the Native Desktop Player
+
+The native app requires both LibVLC and Qt 6 Widgets. To fail early instead of silently skipping the desktop target:
+
 ```bash
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
-cmake --build build -j4
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \\
+  -DTOMATO_REQUIRE_LIBVLC=ON \\
+  -DTOMATO_REQUIRE_DESKTOP_APP=ON
+cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure
+./build/tomato
+# Or open a file directly:
+./build/tomato /path/to/video.mkv
 ```
+
+On macOS with the VLC application bundle, the runtime plug-in path may need to be set before launch:
+
+```bash
+export VLC_PLUGIN_PATH=/Applications/VLC.app/Contents/MacOS/plugins
+./build/tomato
+```
+
+Use `./build/tomato --version` for a quick executable smoke test. The older HTML file under `app/shell/` remains a visual prototype; the native player lives under `app/desktop/`.
 
 ---
 
@@ -140,7 +158,7 @@ ctest --test-dir build --output-on-failure
 - [ROADMAP.md](docs/ROADMAP.md) — Phased release milestones, acceptance criteria, and deferred items.
 - [DECISIONS.md](docs/DECISIONS.md) — Architecture Decision Records (ADRs 001–007).
 - [SECURITY_AND_PRIVACY.md](docs/SECURITY_AND_PRIVACY.md) — Filesystem boundaries, local storage paths, and zero-telemetry guarantee.
-- [BUILD_AND_TESTING.md](docs/BUILD_AND_TESTING.md) — Verified macOS build verification and test hierarchy.
+- [BUILD_AND_TESTING.md](docs/BUILD_AND_TESTING.md) — Build prerequisites, commands, CI, and test hierarchy.
 
 ---
 
