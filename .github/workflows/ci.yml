@@ -1,0 +1,33 @@
+name: Tomato CI
+
+on:
+  push:
+    branches: ["main", "fix/**", "feature/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-build-and-test:
+    name: Linux build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes cmake g++ pkg-config libvlc-dev vlc-plugin-base qt6-base-dev
+      - name: Configure
+        run: >-
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Debug
+          -DTOMATO_REQUIRE_LIBVLC=ON
+          -DTOMATO_REQUIRE_DESKTOP_APP=ON
+      - name: Build
+        run: cmake --build build --parallel 2
+      - name: Test
+        run: ctest --test-dir build --output-on-failure

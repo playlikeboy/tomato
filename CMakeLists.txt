@@ -1,89 +1,72 @@
 cmake_minimum_required(VERSION 3.22)
+project(Tomato VERSION 0.1.0 DESCRIPTION "A modern open-source desktop media player" LANGUAGES C CXX)
 
-project(Tomato
-    VERSION 0.1.0
-    DESCRIPTION "A modern, beautifully designed, open-source desktop media player"
-    LANGUAGES C CXX
-)
+option(TOMATO_BUILD_DESKTOP_APP "Build the desktop app when its dependencies are available" ON)
+option(TOMATO_REQUIRE_LIBVLC "Fail configuration when LibVLC is missing" OFF)
+option(TOMATO_REQUIRE_DESKTOP_APP "Fail configuration when the desktop app cannot be built" OFF)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Enable compiler warnings
 if(MSVC)
     add_compile_options(/W4 /permissive-)
 else()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# Module path for custom finders
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+find_package(Threads REQUIRED)
+find_package(LibVLC QUIET)
 
-# Include directories
-include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-# 1. Discover LibVLC
-find_package(LibVLC)
-
-# 2. Tomato Core Library
-add_library(tomato_core STATIC
-    core/playback/queue_manager.cpp
-)
-target_include_directories(tomato_core PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-# 3. Tomato Engine Library (if LibVLC found)
-if(LibVLC_FOUND)
-    message(STATUS "LibVLC Found: ${LIBVLC_LIBRARY}")
-    message(STATUS "LibVLC Include: ${LIBVLC_INCLUDE_DIR}")
-
-    add_library(tomato_engine STATIC
-        engine/libvlc-adapter/libvlc_adapter.cpp
-    )
-    target_link_libraries(tomato_engine PUBLIC
-        tomato_core
-        LibVLC::LibVLC
-    )
-    target_include_directories(tomato_engine PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${LIBVLC_INCLUDE_DIRS}
-    )
-
-    # LibVLC native test harness
-    add_executable(test_libvlc_harness
-        tests/test_libvlc_harness.cpp
-    )
-    target_link_libraries(test_libvlc_harness PRIVATE
-        LibVLC::LibVLC
-    )
-    target_include_directories(test_libvlc_harness PRIVATE
-        ${LIBVLC_INCLUDE_DIRS}
-    )
-    if(APPLE)
-        set_target_properties(test_libvlc_harness PROPERTIES
-            BUILD_RPATH "/Applications/VLC.app/Contents/MacOS/lib"
-            INSTALL_RPATH "/Applications/VLC.app/Contents/MacOS/lib"
-        )
-    endif()
-else()
-    message(WARNING "LibVLC not found. Building core logic without engine adapter.")
+if(TOMATO_REQUIRE_LIBVLC AND NOT LibVLC_FOUND)
+    message(FATAL_ERROR "LibVLC is required. Install its development package or set LIBVLC_INCLUDE_DIR and LIBVLC_LIBRARY.")
 endif()
 
-# 4. Core Unit Tests
-add_executable(test_queue_manager
-    tests/test_queue_manager.cpp
-)
-target_link_libraries(test_queue_manager PRIVATE
-    tomato_core
-)
+add_library(tomato_core STATIC core/playback/queue_manager.cpp)
+target_include_directories(tomato_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(tomato_core PUBLIC Threads::Threads)
 
-# Enable automated testing with CTest
+add_executable(test_queue_manager tests/test_queue_manager.cpp)
+target_link_libraries(test_queue_manager PRIVATE tomato_core)
 enable_testing()
 add_test(NAME QueueManagerTest COMMAND test_queue_manager)
+
 if(LibVLC_FOUND)
+    message(STATUS "LibVLC include: ${LIBVLC_INCLUDE_DIR}")
+    message(STATUS "LibVLC library: ${LIBVLC_LIBRARY}")
+
+    add_library(tomato_engine STATIC engine/libvlc-adapter/libvlc_adapter.cpp)
+    target_include_directories(tomato_engine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" PRIVATE ${LIBVLC_INCLUDE_DIRS})
+    target_link_libraries(tomato_engine PUBLIC tomato_core LibVLC::LibVLC)
+
+    add_executable(test_libvlc_harness tests/test_libvlc_harness.cpp)
+    target_include_directories(test_libvlc_harness PRIVATE ${LIBVLC_INCLUDE_DIRS})
+    target_link_libraries(test_libvlc_harness PRIVATE LibVLC::LibVLC)
+    if(APPLE)
+        set_target_properties(test_libvlc_harness PROPERTIES BUILD_RPATH "/Applications/VLC.app/Contents/MacOS/lib" INSTALL_RPATH "/Applications/VLC.app/Contents/MacOS/lib")
+    endif()
     add_test(NAME LibVLCHarnessTest COMMAND test_libvlc_harness)
+
+    if(TOMATO_BUILD_DESKTOP_APP)
+        find_package(Qt6 6.2 COMPONENTS Widgets QUIET)
+        if(Qt6Widgets_FOUND)
+            add_executable(tomato app/desktop/main.cpp app/desktop/main_window.cpp app/desktop/main_window.h)
+            target_link_libraries(tomato PRIVATE tomato_engine Qt6::Widgets)
+            target_compile_definitions(tomato PRIVATE TOMATO_VERSION=\""${PROJECT_VERSION}\"")
+            if(APPLE)
+                set_target_properties(tomato PROPERTIES BUILD_RPATH "/Applications/VLC.app/Contents/MacOS/lib" INSTALL_RPATH "/Applications/VLC.app/Contents/MacOS/lib")
+            endif()
+            add_test(NAME TomatoVersionSmoke COMMAND tomato --version)
+        elseif(TOMATO_REQUIRE_DESKTOP_APP)
+            message(FATAL_ERROR "Qt 6 Widgets is required to build the Tomato desktop app.")
+        else()
+            message(WARNING "Qt 6 Widgets not found; skipping the desktop app target.")
+        endif()
+    endif()
+else()
+    message(WARNING "LibVLC not found; building only core logic and queue tests.")
+    if(TOMATO_REQUIRE_DESKTOP_APP)
+        message(FATAL_ERROR "The desktop app requires LibVLC.")
+    endif()
 endif()

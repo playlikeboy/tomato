@@ -1,18 +1,14 @@
 #pragma once
-
+#include <cstddef>
 #include <cstdint>
-#include <string>
-#include <vector>
+#include <mutex>
 #include <optional>
 #include <random>
+#include <string>
+#include <vector>
 
 namespace tomato::core {
-
-enum class RepeatMode {
-    None,
-    RepeatOne,
-    RepeatAll
-};
+enum class RepeatMode { None, RepeatOne, RepeatAll };
 
 struct QueueItem {
     std::string id;
@@ -32,8 +28,6 @@ public:
 class QueueManager {
 public:
     QueueManager();
-
-    // Item Management
     void enqueue(const QueueItem& item);
     void enqueueBatch(const std::vector<QueueItem>& items);
     bool insert(size_t index, const QueueItem& item);
@@ -41,25 +35,21 @@ public:
     bool move(size_t fromIndex, size_t toIndex);
     void clear();
 
-    // Navigation
     bool next();
     bool previous();
     bool jumpTo(size_t index);
 
-    // Getters
     size_t size() const;
     bool empty() const;
     int currentIndex() const;
     std::optional<QueueItem> currentItem() const;
     const std::vector<QueueItem>& items() const;
 
-    // Modes
     void setShuffle(bool enabled);
     bool isShuffle() const;
     void setRepeatMode(RepeatMode mode);
     RepeatMode repeatMode() const;
 
-    // Observers
     void addObserver(IQueueObserver* observer);
     void removeObserver(IQueueObserver* observer);
 
@@ -69,12 +59,13 @@ private:
     void rebuildPlayOrder();
 
     std::vector<QueueItem> m_items;
-    std::vector<size_t> m_playOrder; // indices into m_items for shuffle mode
+    std::vector<size_t> m_playOrder;
+    int m_playOrderPosition = -1;
     int m_currentIndex = -1;
     bool m_shuffle = false;
     RepeatMode m_repeatMode = RepeatMode::None;
     std::mt19937 m_rng;
+    mutable std::mutex m_observerMutex;
     std::vector<IQueueObserver*> m_observers;
 };
-
 } // namespace tomato::core

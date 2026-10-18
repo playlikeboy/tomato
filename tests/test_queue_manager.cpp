@@ -1,121 +1,97 @@
 #include "core/playback/queue_manager.h"
 #include <cassert>
 #include <iostream>
-
+#include <set>
+#include <string>
+#include <vector>
 using namespace tomato::core;
 
-void test_basic_enqueue_and_navigation() {
-    QueueManager qm;
-    assert(qm.empty());
-    assert(qm.size() == 0);
-    assert(qm.currentIndex() == -1);
-
-    QueueItem item1{"1", "file:///movie1.mp4", "Movie 1", 120000, "Director A"};
-    QueueItem item2{"2", "file:///movie2.mp4", "Movie 2", 150000, "Director B"};
-    QueueItem item3{"3", "file:///movie3.mp4", "Movie 3", 90000, "Director C"};
-
-    qm.enqueue(item1);
-    assert(!qm.empty());
-    assert(qm.size() == 1);
-    assert(qm.currentIndex() == 0);
-    assert(qm.currentItem().has_value());
-    assert(qm.currentItem()->title == "Movie 1");
-
-    qm.enqueue(item2);
-    qm.enqueue(item3);
-    assert(qm.size() == 3);
-    assert(qm.currentIndex() == 0);
-
-    // Next
-    bool hasNext = qm.next();
-    assert(hasNext);
-    assert(qm.currentIndex() == 1);
-    assert(qm.currentItem()->title == "Movie 2");
-
-    hasNext = qm.next();
-    assert(hasNext);
-    assert(qm.currentIndex() == 2);
-    assert(qm.currentItem()->title == "Movie 3");
-
-    // End reached with RepeatMode::None
-    hasNext = qm.next();
-    assert(!hasNext);
-    assert(qm.currentIndex() == 2);
-
-    // Previous
-    bool hasPrev = qm.previous();
-    assert(hasPrev);
-    assert(qm.currentIndex() == 1);
-
-    hasPrev = qm.previous();
-    assert(hasPrev);
-    assert(qm.currentIndex() == 0);
-
-    hasPrev = qm.previous();
-    assert(!hasPrev);
-    assert(qm.currentIndex() == 0);
-
-    std::cout << "  ✓ test_basic_enqueue_and_navigation passed" << std::endl;
+namespace {
+void test_navigation() {
+    QueueManager q;
+    q.enqueue({"1", "a.mp4", "A", 1000, ""});
+    q.enqueue({"2", "b.mp4", "B", 1000, ""});
+    q.enqueue({"3", "c.mp4", "C", 1000, ""});
+    assert(q.currentIndex() == 0 && q.currentItem()->title == "A");
+    assert(q.next() && q.currentItem()->title == "B");
+    assert(q.next() && q.currentItem()->title == "C");
+    assert(!q.next());
+    assert(q.previous() && q.currentItem()->title == "B");
+    assert(q.previous() && q.currentItem()->title == "A");
+    assert(!q.previous());
 }
-
 void test_repeat_modes() {
-    QueueManager qm;
-    QueueItem item1{"1", "a.mp4", "Item 1", 1000, ""};
-    QueueItem item2{"2", "b.mp4", "Item 2", 1000, ""};
-    qm.enqueue(item1);
-    qm.enqueue(item2);
-
-    // RepeatOne
-    qm.setRepeatMode(RepeatMode::RepeatOne);
-    qm.jumpTo(0);
-    assert(qm.next());
-    assert(qm.currentIndex() == 0);
-
-    // RepeatAll
-    qm.setRepeatMode(RepeatMode::RepeatAll);
-    qm.jumpTo(1);
-    assert(qm.next());
-    assert(qm.currentIndex() == 0); // Wrapped around to start
-
-    assert(qm.previous());
-    assert(qm.currentIndex() == 1); // Wrapped backward to end
-
-    std::cout << "  ✓ test_repeat_modes passed" << std::endl;
+    QueueManager q;
+    q.enqueue({"1", "a.mp4", "A", 1000, ""});
+    q.enqueue({"2", "b.mp4", "B", 1000, ""});
+    q.setRepeatMode(RepeatMode::RepeatOne);
+    assert(q.jumpTo(0) && q.next() && q.currentItem()->title == "A");
+    q.setRepeatMode(RepeatMode::RepeatAll);
+    assert(q.jumpTo(1) && q.next() && q.currentItem()->title == "A");
+    assert(q.previous() && q.currentItem()->title == "B");
 }
-
-void test_reorder_and_remove() {
-    QueueManager qm;
-    qm.enqueue({"1", "1.mp4", "1", 0, ""});
-    qm.enqueue({"2", "2.mp4", "2", 0, ""});
-    qm.enqueue({"3", "3.mp4", "3", 0, ""});
-    qm.jumpTo(1); // Playing "2"
-
-    // Move index 0 to index 2: [1, 2, 3] -> [2, 3, 1]
-    qm.move(0, 2);
-    assert(qm.items()[0].title == "2");
-    assert(qm.items()[1].title == "3");
-    assert(qm.items()[2].title == "1");
-    assert(qm.currentIndex() == 0); // "2" was shifted to index 0
-
-    // Remove current
-    qm.remove(0);
-    assert(qm.size() == 2);
-    assert(qm.currentIndex() == 0);
-    assert(qm.currentItem()->title == "3");
-
-    // Clear
-    qm.clear();
-    assert(qm.empty());
-    assert(qm.currentIndex() == -1);
-
-    std::cout << "  ✓ test_reorder_and_remove passed" << std::endl;
+void test_shuffle_visits_every_item() {
+    QueueManager q;
+    std::vector<QueueItem> items;
+    for (int i = 0; i < 12; ++i) {
+        const auto id = std::to_string(i);
+        items.push_back({id, id + ".mp4", "Item " + id, 1000, ""});
+    }
+    q.enqueueBatch(items);
+    assert(q.jumpTo(5));
+    const auto selected = q.currentItem()->id;
+    q.setShuffle(true);
+    assert(q.currentItem()->id == selected);
+    std::set<std::string> seen{selected};
+    for (size_t i = 1; i < items.size(); ++i) {
+        assert(q.next());
+        seen.insert(q.currentItem()->id);
+    }
+    assert(seen.size() == items.size());
+    assert(!q.next());
+    const auto before = q.currentItem()->id;
+    q.setShuffle(false);
+    assert(q.currentItem()->id == before);
 }
-
+void test_mutations_and_bounds() {
+    QueueManager q;
+    q.enqueue({"1", "1.mp4", "1", 0, ""});
+    q.enqueue({"2", "2.mp4", "2", 0, ""});
+    q.enqueue({"3", "3.mp4", "3", 0, ""});
+    assert(q.jumpTo(1));
+    assert(q.move(0, 2));
+    assert(q.items()[0].title == "2" && q.currentIndex() == 0);
+    assert(q.remove(0) && q.currentItem()->title == "3");
+    assert(!q.remove(99) && !q.move(0, 0) && !q.insert(99, {"x", "x", "x", 0, ""}));
+    q.clear();
+    assert(q.empty() && q.currentIndex() == -1);
+    assert(!q.next() && !q.previous());
+}
+class SelfRemovingObserver final : public IQueueObserver {
+public:
+    explicit SelfRemovingObserver(QueueManager& q) : q_(q) {}
+    void onQueueChanged() override { ++queueChanges; q_.removeObserver(this); }
+    void onCurrentIndexChanged(int) override { ++indexChanges; }
+    int queueChanges = 0;
+    int indexChanges = 0;
+private:
+    QueueManager& q_;
+};
+void test_observer_reentrancy() {
+    QueueManager q;
+    SelfRemovingObserver observer(q);
+    q.addObserver(&observer);
+    q.enqueue({"1", "1", "1", 0, ""});
+    q.enqueue({"2", "2", "2", 0, ""});
+    assert(observer.queueChanges == 1 && observer.indexChanges == 1);
+}
+}
 int main() {
-    std::cout << "[Tomato Tests] Running QueueManager Unit Tests..." << std::endl;
-    test_basic_enqueue_and_navigation();
+    test_navigation();
     test_repeat_modes();
-    test_reorder_and_remove();
-    std::cout << "[Tomato Tests] All QueueManager Tests Passed Successfully!" << std::endl;
+    test_shuffle_visits_every_item();
+    test_mutations_and_bounds();
+    test_observer_reentrancy();
+    std::cout << "Tomato QueueManager tests passed.\n";
     return 0;
 }
